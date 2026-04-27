@@ -1,0 +1,32 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install PyQt6 PyInstaller
+
+      - name: Build
+        run: |
+          pyinstaller --onedir --windowed `
+            --name ScreenFloat `
+            --add-data "build;build" `
+            main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenFloat-Windows
+          path: dist/ScreenFloat/
