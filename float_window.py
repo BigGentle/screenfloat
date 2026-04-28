@@ -1,7 +1,6 @@
 import base64
-import io
 import re
-from PyQt6.QtCore import Qt, QPoint, QEvent, QRectF
+from PyQt6.QtCore import Qt, QPoint, QEvent, QRectF, QBuffer, QByteArray
 from PyQt6.QtGui import QPixmap, QShortcut, QKeySequence
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -307,9 +306,10 @@ class FloatWindow(QMainWindow):
             )
 
     def _pixmap_to_base64(self, pix):
-        buf = io.BytesIO()
+        buf = QBuffer()
+        buf.open(QBuffer.OpenModeFlag.WriteOnly)
         pix.save(buf, "PNG")
-        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        return "data:image/png;base64," + base64.b64encode(buf.data().data()).decode()
 
     def load_image_base64(self, data: str):
         if not data or data == "about:blank":
