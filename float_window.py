@@ -1,7 +1,7 @@
 import base64
 import io
 import re
-from PyQt6.QtCore import Qt, QPoint, QEvent
+from PyQt6.QtCore import Qt, QPoint, QEvent, QRectF
 from PyQt6.QtGui import QPixmap, QShortcut, QKeySequence
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -251,6 +251,7 @@ class FloatWindow(QMainWindow):
         self._view.resetTransform()
         self._current_zoom = 100
         self.zoom_input.setText("100")
+        self._fit_to_window()
 
     def _on_zoom_input(self):
         try:
@@ -261,6 +262,8 @@ class FloatWindow(QMainWindow):
 
     def _set_zoom(self, percent):
         percent = max(25, min(300, percent))
+        if self._current_zoom <= 0 or percent <= 0:
+            return
         scale = percent / self._current_zoom
         self._view.scale(scale, scale)
         self._current_zoom = percent
@@ -276,18 +279,32 @@ class FloatWindow(QMainWindow):
     # ── image loading ────────────────────────────────────────
 
     def _load_image_from_path(self, path):
+        if not path:
+            return
         pix = QPixmap(path)
         if not pix.isNull():
             self._show_pixmap(pix)
             self._image_base64 = self._pixmap_to_base64(pix)
 
     def _show_pixmap(self, pix):
+        self._view.setUpdatesEnabled(False)
         self._scene.clear()
+        self._view.resetTransform()
+        self._view.setDragMode(QGraphicsView.DragMode.NoDrag)
         self._scene.addPixmap(pix)
-        self._scene.setSceneRect(pix.rect())
-        self._view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self._scene.setSceneRect(QRectF(pix.rect()))
         self._current_zoom = 100
         self.zoom_input.setText("100")
+        self._view.setUpdatesEnabled(True)
+        self._fit_to_window()
+        self._view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+
+    def _fit_to_window(self):
+        vr = self._view.viewport()
+        if vr and vr.width() > 0 and vr.height() > 0:
+            self._view.fitInView(
+                self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
+            )
 
     def _pixmap_to_base64(self, pix):
         buf = io.BytesIO()
