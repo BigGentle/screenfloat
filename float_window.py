@@ -250,9 +250,31 @@ class FloatWindow(QMainWindow):
             full = screen.grabWindow(0)
             if full.isNull():
                 raise RuntimeError("grabWindow returned null")
+
+            # Detect permission denied: sample pixels across the image
+            img = full.toImage()
+            sample_points = [
+                (full.width() // 4, full.height() // 4),
+                (full.width() // 2, full.height() // 2),
+                (full.width() * 3 // 4, full.height() * 3 // 4),
+            ]
+            all_black = all(
+                img.pixelColor(x, y).value() == 0 for x, y in sample_points
+            )
+            if all_black:
+                self.show()
+                self.raise_()
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.warning(
+                    self, "权限不足",
+                    "无法截取屏幕内容。\n\n"
+                    "请在 系统设置 → 隐私与安全性 → 屏幕录制 中\n"
+                    "添加并启用 ScreenFloat，然后重新启动应用。"
+                )
+                return
         except Exception as e:
-            print(f"Screenshot failed: {e}")
             self.show()
+            self.raise_()
             return
 
         overlay = ScreenshotOverlay(full)
