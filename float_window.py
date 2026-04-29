@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QSlider, QLineEdit, QLabel, QFileDialog,
     QApplication
 )
+from screenshot_overlay import ScreenshotOverlay
 
 
 class FloatWindow(QMainWindow):
@@ -80,12 +81,13 @@ class FloatWindow(QMainWindow):
 
         self.btn_new = self._make_btn("+", btn_style, self._on_new)
         self.btn_open = self._make_btn("\U0001F4C2", btn_style, self._on_open_file)
+        self.btn_screenshot = self._make_btn("\U0001F4F7", btn_style, self._on_screenshot)
         self.btn_lock = self._make_btn("\U0001F513", btn_style, self._on_toggle_lock)
         self.btn_min = self._make_btn("−", btn_style, self.showMinimized)
         self.btn_close = self._make_btn("×", btn_style, self.close)
         self.btn_close.setStyleSheet(btn_style + "QPushButton:hover { background: #e74c3c; }")
 
-        for b in [self.btn_new, self.btn_open, self.btn_lock, self.btn_min, self.btn_close]:
+        for b in [self.btn_new, self.btn_open, self.btn_screenshot, self.btn_lock, self.btn_min, self.btn_close]:
             layout.addWidget(b)
 
         self._layout.addWidget(self._toolbar)
@@ -236,6 +238,21 @@ class FloatWindow(QMainWindow):
         )
         if path:
             self._load_image_from_path(path)
+
+    def _on_screenshot(self):
+        self.hide()
+        QApplication.processEvents()
+        screen = QApplication.primaryScreen()
+        full = screen.grabWindow(0)
+        overlay = ScreenshotOverlay(full)
+        overlay.captured.connect(self._on_screenshot_done)
+        overlay.cancelled.connect(self.show)
+        overlay.show()
+
+    def _on_screenshot_done(self, pix):
+        self.show()
+        self._show_pixmap(pix)
+        self._image_base64 = pix
 
     def _on_toggle_lock(self):
         self._locked = not self._locked
