@@ -1,6 +1,6 @@
 import base64
 import re
-from PyQt6.QtCore import Qt, QPoint, QEvent, QRectF, QBuffer, QByteArray
+from PyQt6.QtCore import Qt, QPoint, QEvent, QRectF, QBuffer, QByteArray, QTimer
 from PyQt6.QtGui import QPixmap, QShortcut, QKeySequence
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -242,17 +242,32 @@ class FloatWindow(QMainWindow):
     def _on_screenshot(self):
         self.hide()
         QApplication.processEvents()
-        screen = QApplication.primaryScreen()
-        full = screen.grabWindow(0)
+        QTimer.singleShot(200, self._do_screenshot)
+
+    def _do_screenshot(self):
+        try:
+            screen = QApplication.primaryScreen()
+            full = screen.grabWindow(0)
+            if full.isNull():
+                raise RuntimeError("grabWindow returned null")
+        except Exception as e:
+            print(f"Screenshot failed: {e}")
+            self.show()
+            return
+
         overlay = ScreenshotOverlay(full)
         overlay.captured.connect(self._on_screenshot_done)
-        overlay.cancelled.connect(self.show)
+        overlay.cancelled.connect(self._restore_from_screenshot)
         overlay.show()
 
     def _on_screenshot_done(self, pix):
-        self.show()
+        self._restore_from_screenshot()
         self._show_pixmap(pix)
         self._image_base64 = pix
+
+    def _restore_from_screenshot(self):
+        self.show()
+        self.raise_()
 
     def _on_toggle_lock(self):
         self._locked = not self._locked

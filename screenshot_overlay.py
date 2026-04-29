@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt, QRect, QPoint, pyqtSignal
-from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QPixmap
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtGui import QPainter, QPen, QColor, QPixmap
+from PyQt6.QtWidgets import QWidget, QApplication
 
 
 class ScreenshotOverlay(QWidget):
@@ -17,13 +17,12 @@ class ScreenshotOverlay(QWidget):
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool
+            Qt.WindowType.Window
         )
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setCursor(Qt.CursorShape.CrossCursor)
 
-        # Cover all screens
         geo = QRect()
-        from PyQt6.QtWidgets import QApplication
         for screen in QApplication.screens():
             geo = geo.united(screen.geometry())
         self.setGeometry(geo)
@@ -32,21 +31,19 @@ class ScreenshotOverlay(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # Draw fullscreen background
-        p.drawPixmap(self.rect(), self._full)
+        if not self._full.isNull():
+            p.drawPixmap(self.rect(), self._full)
 
-        # Dark mask
-        mask = QColor(0, 0, 0, 120)
+        mask = QColor(0, 0, 0, 140)
         p.fillRect(self.rect(), mask)
 
         if self._selecting and self._start != self._end:
             r = self._selection_rect()
-            # Cut out selection — show original image
-            p.setCompositionMode(QPainter.CompositionMode.CompositionModeSourceOver)
-            p.drawPixmap(r, self._full, r)
+            if not self._full.isNull():
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                p.drawPixmap(r, self._full, r)
 
-            # Selection border
-            pen = QPen(QColor(255, 255, 255), 1, Qt.PenStyle.DashLine)
+            pen = QPen(QColor(255, 255, 255), 2, Qt.PenStyle.DashLine)
             p.setPen(pen)
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRect(r)
@@ -74,8 +71,11 @@ class ScreenshotOverlay(QWidget):
             self._selecting = False
             r = self._selection_rect()
             if r.width() > 4 and r.height() > 4:
-                cropped = self._full.copy(r)
-                self.captured.emit(cropped)
+                if not self._full.isNull():
+                    cropped = self._full.copy(r)
+                    self.captured.emit(cropped)
+                else:
+                    self.cancelled.emit()
             else:
                 self.cancelled.emit()
             self.close()
